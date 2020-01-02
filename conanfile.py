@@ -1,10 +1,11 @@
 from conans import ConanFile, CMake, tools
+from conans.errors import ConanException
 import os
 
 
 class DatastaxcppdriverConan(ConanFile):
     name = "datastax-cpp-driver"
-    version = "2.8.1"
+    version = "2.14.0"
     license = "Apache 2.0"
     url = "https://github.com/kmaragon/conan-datastax-cpp-driver"
     description = "Conan package for Datastax Open Source C++ driver (non-DSE)"
@@ -18,21 +19,22 @@ class DatastaxcppdriverConan(ConanFile):
             "use_tcmalloc": [True, False],
             "use_zlib": [True, False]
         }
-    requires = "libuv/1.15.0@bincrafters/stable"
-    default_options = "shared=False", "multicore_compilation=True", "use_boost_atomic=False", "use_cpp_atomic=True", "use_openssl=True", "use_tcmalloc=False", "use_zlib=True"
+    requires = "libuv/[>=1.31.0]@bincrafters/stable"
+    default_options = "shared=False", "multicore_compilation=True", "use_boost_atomic=False", "use_cpp_atomic=True", "use_openssl=False", "use_tcmalloc=False", "use_zlib=True"
     generators = "cmake"
 
     def configure(self):
+        # if self.options.use_openssl:
+        print('Forcing openssl usage because datastax cpp driver is BROKEN without it')
+        self.requires("openssl/1.1.1d")
+
         if self.options.use_boost_atomic:
             if self.options.use_cpp_atomic:
                 raise ConanException("Only one of use_boost_atomic and use_cpp_atomic should be used")
-            self.requires("Boost/1.66.0@conan/stable")
-
-        if self.options.use_openssl:
-            self.requires("OpenSSL/1.0.2o@conan/stable")
+            self.requires("boost/1.71.0")
 
         if self.options.use_zlib:
-            self.requires("zlib/1.2.11@conan/stable")
+            self.requires("zlib/1.2.11")
 
 
     def source(self):
@@ -47,6 +49,8 @@ class DatastaxcppdriverConan(ConanFile):
                               '''include(CppDriver)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()''')
+
+        tools.replace_in_file("cpp-driver-{}/CMakeLists.txt".format(self.version), "CassUseLibuv()", '')
 
     def build(self):
         cmake = CMake(self)
@@ -65,7 +69,8 @@ conan_basic_setup()''')
         cmake.definitions["CASS_USE_BOOST_ATOMIC"] = "ON" if self.options.use_boost_atomic else "OFF"
         cmake.definitions["CASS_USE_STD_ATOMIC"] = "ON" if self.options.use_cpp_atomic else "OFF"
         cmake.definitions["CASS_USE_LIBSSH2"] = "OFF"
-        cmake.definitions["CASS_USE_OPENSSL"] = "ON" if self.options.use_openssl else "OFF"
+        # FIXME: datastax is BROKEN without ssl on
+        cmake.definitions["CASS_USE_OPENSSL"] = "ON" # if self.options.use_openssl else "OFF"
         cmake.definitions["CASS_USE_TCMALLOC"] = "ON" if self.options.use_tcmalloc else "OFF"
         cmake.definitions["CASS_USE_STATIC_LIBS"] = "ON"
         cmake.definitions["CASS_USE_ZLIB"] = "ON" if self.options.use_zlib else "OFF"
