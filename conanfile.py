@@ -5,7 +5,7 @@ import os
 
 class DatastaxcppdriverConan(ConanFile):
     name = "datastax-cpp-driver"
-    version = "2.15.1"
+    version = "2.15.2"
     license = "Apache 2.0"
     url = "https://github.com/kmaragon/conan-datastax-cpp-driver"
     description = "Conan package for Datastax Open Source C++ driver (non-DSE)"
@@ -19,7 +19,7 @@ class DatastaxcppdriverConan(ConanFile):
             "use_tcmalloc": [True, False],
             "use_zlib": [True, False]
         }
-    requires = "libuv/[>=1.31.0]@bincrafters/stable"
+    requires = "libuv/[>=1.38.0]"
     default_options = "shared=False", "multicore_compilation=True", "use_boost_atomic=False", "use_cpp_atomic=True", "use_openssl=False", "use_tcmalloc=False", "use_zlib=True"
     generators = "cmake"
 
@@ -49,6 +49,13 @@ class DatastaxcppdriverConan(ConanFile):
                               '''project(cassandra C CXX)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()''')
+
+        # In another place the datastax cmakes enables warnings as errors but sparsehashmap is FULL of int
+        # float converaion warnings
+        tools.replace_in_file("cpp-driver-{}/src/CMakeLists.txt".format(self.version),
+                'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-undefined-var-template -Werror")',
+                'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-undefined-var-template -Wno-implicit-int-float-conversion -Werror")')
+
 
     def build(self):
         cmake = CMake(self)
