@@ -5,7 +5,7 @@ import os
 
 class DatastaxcppdriverConan(ConanFile):
     name = "datastax-cpp-driver"
-    version = "2.15.2"
+    version = "2.16.0"
     license = "Apache 2.0"
     url = "https://github.com/kmaragon/conan-datastax-cpp-driver"
     description = "Conan package for Datastax Open Source C++ driver (non-DSE)"
@@ -24,9 +24,8 @@ class DatastaxcppdriverConan(ConanFile):
     generators = "cmake"
 
     def configure(self):
-        # if self.options.use_openssl:
-        print('Forcing openssl usage because datastax cpp driver is BROKEN without it')
-        self.requires("openssl/1.1.1d")
+        if self.options.use_openssl:
+            self.requires("openssl/1.1.1d")
 
         if self.options.use_boost_atomic:
             if self.options.use_cpp_atomic:
