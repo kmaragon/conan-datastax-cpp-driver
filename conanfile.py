@@ -20,8 +20,9 @@ class DatastaxcppdriverConan(ConanFile):
             "use_zlib": [True, False]
         }
     requires = "libuv/[>=1.38.0]"
+    build_requires = "openssl/1.1.1d"
     default_options = "shared=False", "multicore_compilation=True", "use_boost_atomic=False", "use_cpp_atomic=True", "use_openssl=False", "use_tcmalloc=False", "use_zlib=True"
-    generators = "cmake"
+    generators = "cmake", "cmake_find_package"
 
     def configure(self):
         if self.options.use_openssl:
@@ -55,10 +56,15 @@ conan_basic_setup()''')
                 'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-undefined-var-template -Werror")',
                 'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-undefined-var-template -Wno-implicit-int-float-conversion -Werror")')
 
+        tools.replace_in_file('cpp-driver-{}/cmake/Dependencies.cmake'.format(self.version), 'find_package(Libuv "1.0.0")', '''find_package(libuv "1.0.0")
+set(LIBUV_LIBRARY "libuv::libuv")
+find_package(Libuv "1.0.0")''')
 
     def build(self):
         cmake = CMake(self)
 
+        os.environ['LIBUV_ROOT_DIR'] = self.deps_cpp_info['libuv'].rootpath
+        
         cmake.definitions["CASS_BUILD_DOCS"] = "OFF"
         cmake.definitions["CASS_BUILD_EXAMPLES"] = "OFF"
         cmake.definitions["CASS_BUILD_INTEGRATION_TESTS"] = "OFF"
@@ -69,7 +75,6 @@ conan_basic_setup()''')
         cmake.definitions["CASS_DEBUG_CUSTOM_ALLOC"] = "OFF"
         cmake.definitions["CASS_INSTALL_HEADER"] = "ON"
         cmake.definitions["CASS_INSTALL_PKG_CONFIG"] = "OFF"
-        cmake.definitions["LIBUV_ROOT_DIR"] = self.deps_cpp_info['libuv'].rootpath
         cmake.definitions["CASS_MULTICORE_COMPILATION"] = "ON" if self.options.multicore_compilation else "OFF"
         cmake.definitions["CASS_USE_BOOST_ATOMIC"] = "ON" if self.options.use_boost_atomic else "OFF"
         cmake.definitions["CASS_USE_STD_ATOMIC"] = "ON" if self.options.use_cpp_atomic else "OFF"
@@ -78,14 +83,10 @@ conan_basic_setup()''')
         cmake.definitions["CASS_USE_TCMALLOC"] = "ON" if self.options.use_tcmalloc else "OFF"
         cmake.definitions["CASS_USE_STATIC_LIBS"] = "ON"
         cmake.definitions["CASS_USE_ZLIB"] = "ON" if self.options.use_zlib else "OFF"
+        cmake.definitions['CMAKE_PREFIX_PATH'] = '.'
 
         cmake.configure(source_folder="cpp-driver-{}".format(self.version))
         cmake.build()
-
-        # Explicit way:
-        # self.run('cmake %s/hello %s'
-        #          % (self.source_folder, cmake.command_line))
-        # self.run("cmake --build . %s" % cmake.build_config)
 
     def package(self):
         cmake = CMake(self)
